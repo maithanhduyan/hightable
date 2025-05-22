@@ -11,33 +11,20 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
       # REDIS_URL: redis://redis:6379
-    depends_on:
-      - db
-      - redis
+    volumes:
+      - .:/workspace:cached
     networks:
       - continental 
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`api.localhost`)"
-      - "traefik.http.services.backend.loadbalancer.server.port=3000"
+      - "traefik.http.routers.api_hightable.rule=Host(`api.mastervip.vn`)"
+      - "traefik.http.routers.api_hightable.entrypoints=web,websecure"
+      - "traefik.http.routers.api_hightable.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.api_hightable.tls=true"
+      - "traefik.http.services.api_hightable.loadbalancer.server.port=3000"
+    command: >
+      /bin/sh -c "while sleep 1000; do :; done"
 
-  db:
-    image: postgres:17
-    container_name: db
-    env_file:
-      - .env
-    restart: unless-stopped
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-      
-    volumes:
-      - postgresql_data:/var/lib/postgresql/data
-    networks:
-      - continental 
 
   redis:
     image: redis:7
@@ -47,32 +34,6 @@ services:
       - redis_data:/data
     networks:
       - continental 
-
-  traefik:
-    image: traefik:v3.4.0
-    container_name: traefik
-    command:
-      - "--api.dashboard=true"
-      - "--providers.docker=true"
-      - "--entrypoints.web.address=:80"
-    ports:
-      - "80:80"
-      # - "8080:8080" # Traefik dashboard
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - continental 
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.traefik.rule=Host(`traefik.mastervip.vn`)"
-      - "traefik.http.routers.traefik.entrypoints=web"
-      - "traefik.http.routers.traefik.service=api@internal"
-      - "traefik.http.routers.traefik.middlewares=authtraefik"
-      - "traefik.http.middlewares.authtraefik.basicauth.users=admin:$apr1$APGEpVfQ$rb1IcWoFdU1SGkQFKogGw1"
-
-volumes:
-  postgresql_data:
-  redis_data:
 
 networks:
   continental :

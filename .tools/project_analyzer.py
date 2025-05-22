@@ -99,7 +99,7 @@ def write_markdown(files, output_file, root_dir, exclude_dirs=None, exclude_file
 
 
 if __name__ == "__main__":
-    root_dir = "../"  # Thư mục gốc của dự án
+    root_dir = "../hightable"  # Thư mục gốc của dự án
     output_file = "./.tools/project_structure.md"
     extensions = ["ts","tsx"]  # Danh sách các phần mở rộng tệp
     filenames = ["Dockerfile","docker-compose.yml"]  # Danh sách các tên tệp cụ thể
@@ -126,6 +126,7 @@ if __name__ == "__main__":
         "generated",
         "migrations",
         "test"
+        ".devcontainer"
     ]  # Thư mục cần bỏ qua
 
     # Danh sách các tệp cần bỏ qua

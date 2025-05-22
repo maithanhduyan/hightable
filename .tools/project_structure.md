@@ -1,29 +1,35 @@
 # Cấu trúc Dự án như sau:
 
 ```
-../
-└── hightable
-    ├── Dockerfile
-    ├── docker-compose.yml
-    ├── eslint.config.mjs
-    ├── package.json
-    ├── pnpm-lock.yaml
-    ├── prisma
-    │   ├── schema.prisma
-    │   └── seed.ts
-    ├── src
-    │   ├── app.controller.spec.ts
-    │   ├── app.controller.ts
-    │   ├── app.module.ts
-    │   ├── app.service.ts
-    │   └── main.ts
-    ├── tsconfig.build.json
-    └── tsconfig.json
+../hightable
+├── .devcontainer
+│   ├── Dockerfile
+│   └── devcontainer.json
+├── .env.sample
+├── Dockerfile
+├── docker-compose.yml
+├── eslint.config.mjs
+├── package.json
+├── pnpm-lock.yaml
+├── prisma
+│   ├── schema.prisma
+│   └── seed.ts
+├── src
+│   ├── app.controller.spec.ts
+│   ├── app.controller.ts
+│   ├── app.module.ts
+│   ├── app.service.ts
+│   └── main.ts
+├── test
+│   ├── app.e2e-spec.ts
+│   └── jest-e2e.json
+├── tsconfig.build.json
+└── tsconfig.json
 ```
 
 # Danh sách chi tiết các file:
 
-## File ../hightable\docker-compose.yml:
+## File ../hightable/docker-compose.yml:
 ```yaml
 version: '3.8'
 
@@ -35,17 +41,25 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgres://postgres:postgres@db:5432/hightable
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
       # REDIS_URL: redis://redis:6379
-    depends_on:
-      - db
-      - redis
+    # depends_on:
+    #   - db
+    #   - redis
+    volumes:
+      - .:/workspace:cached
     networks:
       - continental 
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`api.localhost`)"
-      - "traefik.http.services.backend.loadbalancer.server.port=3000"
+      - "traefik.http.routers.api_hightable.rule=Host(`api.mastervip.vn`)"
+      - "traefik.http.routers.api_hightable.entrypoints=web,websecure"
+      - "traefik.http.routers.api_hightable.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.api_hightable.tls=true"
+      - "traefik.http.services.api_hightable.loadbalancer.server.port=3000"
+    command: >
+      /bin/sh -c "while sleep 1000; do :; done"
 
   db:
     image: postgres:17
@@ -77,8 +91,10 @@ services:
   traefik:
     image: traefik:v3.4.0
     container_name: traefik
+    env_file:
+      - .env
     command:
-      - "--api.insecure=true"
+      - "--api.dashboard=true"
       - "--providers.docker=true"
       - "--entrypoints.web.address=:80"
     ports:
@@ -88,7 +104,13 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - continental 
-
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`${TRAEFIK_URL}`)"
+      - "traefik.http.routers.traefik.entrypoints=web"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.middlewares=authtraefik"
+      - "traefik.http.middlewares.authtraefik.basicauth.users=${TRAEFIK_USER}:${TRAEFIK_PASSWORD}"
 volumes:
   postgresql_data:
   redis_data:
@@ -98,45 +120,25 @@ networks:
     external: true
 
 # Create networks
-# docker network create continental 
+# docker network create continental
 ```
 
-## File ../hightable\Dockerfile:
+## File ../hightable/Dockerfile:
 ```
 # Stage 1: Build
 FROM node:20-alpine AS builder
 
-WORKDIR /app
-
-# Cài pnpm
+# Cài corepack và pnpm
 RUN corepack enable && corepack prepare pnpm@8.15.5 --activate
 
-COPY package*.json ./
-COPY pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+WORKDIR /workspace
 
-COPY . .
-RUN pnpm run build
 
-# Stage 2: Production
-FROM node:20-alpine
-
-WORKDIR /app
-
-RUN corepack enable && corepack prepare pnpm@8.15.5 --activate
-
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/pnpm-lock.yaml ./
-
-ENV NODE_ENV=production
-
-CMD ["node", "dist/main.js"]
+CMD [ "sleep", "infinity"]
 
 ```
 
-## File ../hightable\prisma\seed.ts:
+## File ../hightable/prisma/seed.ts:
 ```typescript
 import { PrismaClient } from '@prisma/client';
 
@@ -163,7 +165,49 @@ main()
 
 ```
 
-## File ../hightable\src\app.controller.spec.ts:
+## File ../hightable/src/app.service.ts:
+```typescript
+import { Injectable } from '@nestjs/common';
+import { PrismaClient, User } from '@prisma/client';
+
+@Injectable()
+export class AppService {
+  private prisma = new PrismaClient();
+
+  async getUsers(): Promise<User[]> {
+    return this.prisma.user.findMany();
+  }
+
+  getHello(): string {
+    return 'Hello World!';
+  }
+}
+
+```
+
+## File ../hightable/src/app.controller.ts:
+```typescript
+import { Controller, Get } from '@nestjs/common';
+import { AppService } from './app.service';
+
+@Controller()
+export class AppController {
+  constructor(private readonly appService: AppService) {}
+
+  @Get()
+  getHello(): string {
+    return this.appService.getHello();
+  }
+
+  @Get('users')
+  async getUsers() {
+    return this.appService.getUsers();
+  }
+}
+
+```
+
+## File ../hightable/src/app.controller.spec.ts:
 ```typescript
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller';
@@ -189,64 +233,7 @@ describe('AppController', () => {
 
 ```
 
-## File ../hightable\src\app.controller.ts:
-```typescript
-import { Controller, Get } from '@nestjs/common';
-import { AppService } from './app.service';
-
-@Controller()
-export class AppController {
-  constructor(private readonly appService: AppService) {}
-
-  @Get()
-  getHello(): string {
-    return this.appService.getHello();
-  }
-
-  @Get('users')
-  async getUsers() {
-    return this.appService.getUsers();
-  }
-}
-
-```
-
-## File ../hightable\src\app.module.ts:
-```typescript
-import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-
-@Module({
-  imports: [],
-  controllers: [AppController],
-  providers: [AppService],
-})
-export class AppModule {}
-
-```
-
-## File ../hightable\src\app.service.ts:
-```typescript
-import { Injectable } from '@nestjs/common';
-import { PrismaClient, User } from '@prisma/client';
-
-@Injectable()
-export class AppService {
-  private prisma = new PrismaClient();
-
-  async getUsers(): Promise<User[]> {
-    return this.prisma.user.findMany();
-  }
-
-  getHello(): string {
-    return 'Hello World!';
-  }
-}
-
-```
-
-## File ../hightable\src\main.ts:
+## File ../hightable/src/main.ts:
 ```typescript
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
@@ -268,6 +255,80 @@ bootstrap()
 // app.enableShutdownHooks();
 // Uncomment the following line to enable shutdown hooks
 // bootstrap();
+
+```
+
+## File ../hightable/src/app.module.ts:
+```typescript
+import { Module } from '@nestjs/common';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+
+@Module({
+  imports: [],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
+
+```
+
+## File ../hightable/.devcontainer/Dockerfile:
+```
+# Devcontainer for NestJS + pnpm + Traefik + Postgres + Redis
+
+FROM node:20-alpine
+
+# Cài corepack và pnpm
+RUN corepack enable && corepack prepare pnpm@8.15.5 --activate
+
+# Cài các tool hữu ích cho dev
+RUN apk add --no-cache bash git curl
+
+WORKDIR /workspace
+
+# Copy package config để tận dụng cache
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile || true
+
+# Copy toàn bộ source code
+COPY . .
+
+CMD ["sleep", "infinity"]
+
+```
+
+## File ../hightable/test/app.e2e-spec.ts:
+```typescript
+import { INestApplication } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import * as request from 'supertest';
+import { App } from 'supertest/types';
+import { AppModule } from './../src/app.module';
+
+describe('AppController (e2e)', () => {
+  let app: INestApplication<App>;
+
+  beforeAll(async () => {
+    const moduleFixture = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    await app.init();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('/ (GET)', () => {
+    return request(app.getHttpServer())
+      .get('/')
+      .expect(200)
+      .expect('Hello World!');
+  });
+});
 
 ```
 
