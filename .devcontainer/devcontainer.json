@@ -1,0 +1,17 @@
+{
+  "name": "NestJS DevContainer",
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "context": ".."
+  },
+  "settings": {
+    "terminal.integrated.shell.linux": "/bin/sh"
+  },
+  "forwardPorts": [3000, 5432, 6379, 80],
+  "postCreateCommand": "pnpm install",
+  "remoteUser": "node",
+  "features": {},
+  "mounts": [
+    "source=${localWorkspaceFolder}/node_modules,target=/workspace/node_modules,type=volume"
+  ]
+}

@@ -86,5 +86,6 @@
   },
   "prisma": {
     "seed": "ts-node --project ./prisma/tsconfig.json ./prisma/seed.ts"
-  }
+  },
+  "packageManager": "pnpm@8.15.5"
 }
