@@ -1,4 +1,4 @@
-// Prisma schema file for SQLite
+// Prisma schema file for PostgreSQL
 // This file defines your data models and database connection
 
 generator client {
@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

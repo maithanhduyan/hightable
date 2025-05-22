@@ -1,9 +1,0 @@
-{
-  "compilerOptions": {
-    "module": "commonjs",
-    "target": "ES2023",
-    "esModuleInterop": true,
-    "outDir": "./dist"
-  },
-  "include": ["prisma/seed.ts"]
-}
