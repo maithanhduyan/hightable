@@ -3,7 +3,7 @@
   "workbench.iconTheme": "material-icon-theme",
   "editor.formatOnSave": true,
   "editor.insertSpaces": true,
-  // "editor.tabSize": 2,
+  "editor.tabSize": 2,
   "editor.bracketPairColorization.enabled": true,
   "editor.guides.bracketPairs": "active",
   "editor.rulers": [80],
